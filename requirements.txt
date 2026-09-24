@@ -1,0 +1,4 @@
+tibia.py==6.4.*
+httpx>=0.27
+PyYAML>=6.0
+cryptography>=42

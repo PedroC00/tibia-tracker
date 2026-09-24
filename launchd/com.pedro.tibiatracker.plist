@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Fallback runner for the Mac. Install: see README "Run on your Mac instead". -->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pedro.tibiatracker</string>
+    <key>WorkingDirectory</key>
+    <string>/Users/pedrocosta/vs_code/tibia_tracker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/pedrocosta/vs_code/tibia_tracker/.venv/bin/python</string>
+        <string>-m</string>
+        <string>tracker</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PUSHOVER_TOKEN</key>
+        <string>REPLACE_ME</string>
+        <key>PUSHOVER_USER</key>
+        <string>REPLACE_ME</string>
+    </dict>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+    <key>StandardOutPath</key>
+    <string>/Users/pedrocosta/vs_code/tibia_tracker/logs/tracker.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/pedrocosta/vs_code/tibia_tracker/logs/tracker.log</string>
+</dict>
+</plist>

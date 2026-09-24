@@ -1,0 +1,51 @@
+name: Contact kill switch
+
+# Someone other than the owner opened an issue: halt all fetching right away,
+# post the automatic reply (.github/AUTO_REPLY.md) and alert the owner.
+on:
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: tracker
+  cancel-in-progress: false
+
+jobs:
+  halt:
+    if: github.event.issue.user.login != github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Halt and auto-reply
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKER_CONFIG: ${{ secrets.TRACKER_CONFIG }}
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        run: |
+          # Without these the run would use the public example config / lose its state.
+          [ -n "$TRACKER_CONFIG" ] && [ -n "$STATE_KEY" ] || { echo "::error::TRACKER_CONFIG and STATE_KEY secrets are required"; exit 1; }
+          python -m tracker --contact-only
+
+      - name: Save halt
+        if: always()
+        run: |
+          git config user.name "tibia-tracker[bot]"
+          git config user.email "tibia-tracker[bot]@users.noreply.github.com"
+          [ -d state ] || exit 0
+          git add -A state/
+          git diff --cached --quiet || (git commit -m "Halt: contact received" && git pull --rebase -q && git push)

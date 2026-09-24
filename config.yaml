@@ -1,0 +1,56 @@
+# PUBLIC EXAMPLE configuration: the values below are placeholders.
+# Real settings are private: config.local.yaml locally (git-ignored) and the
+# TRACKER_CONFIG GitHub secret in Actions. Each top-level section in those
+# replaces the same section here (see tracker/config.py).
+
+user_agent: "tibia-tracker/0.1 (+https://github.com/PedroC00/tibia-tracker; personal tracker, 2 runs/day)"
+
+houses:
+  enabled: true
+  world: Antica
+  towns:
+    - "Ab'Dendriel"
+    - Ankrahmun
+    - Carlin
+    - Darashia
+    - Edron
+    - Farmine
+    - Gray Beach
+    - Issavi
+    - Kazordoon
+    - Liberty Bay
+    - Moonfall
+    - Port Hope
+    - Rathleton
+    - Silvertides
+    - Svargrond
+    - Thais
+    - Venore
+    - Yalahar
+  # Optional filters (remove or set to null to disable)
+  max_bid: null        # gold
+  min_size: null       # sqm
+  notify_bid_raises: true
+
+bazaar:
+  enabled: true
+  # Any of: OPEN_PVP, RETRO_OPEN_PVP
+  pvp_types: [OPEN_PVP]
+  # A character matches if ANY listed skill for its vocation is >= the minimum.
+  # Skill names: SWORD_FIGHTING, AXE_FIGHTING, CLUB_FIGHTING, DISTANCE_FIGHTING,
+  #              MAGIC_LEVEL, FIST_FIGHTING, SHIELDING
+  high_skill:
+    KNIGHT:   {SWORD_FIGHTING: 115, AXE_FIGHTING: 115, CLUB_FIGHTING: 115}
+    PALADIN:  {DISTANCE_FIGHTING: 115}
+    SORCERER: {MAGIC_LEVEL: 100}
+    DRUID:    {MAGIC_LEVEL: 100}
+    MONK:     {FIST_FIGHTING: 115}
+  min_level: null      # applied server-side, reduces requests
+  max_bid_tc: null     # Tibia Coins, applied after fetching
+  # Politeness towards tibia.com
+  request_delay_seconds: 3
+  max_requests_per_run: 60
+
+pushover:
+  # Credentials come from env vars PUSHOVER_TOKEN and PUSHOVER_USER.
+  max_messages_per_category: 6

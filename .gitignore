@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+logs/
+# Private: real config, plaintext state, local encryption key
+config.local.yaml
+state/seen.json
+.secrets/

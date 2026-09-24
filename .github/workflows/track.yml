@@ -1,0 +1,50 @@
+name: Tibia tracker
+
+on:
+  schedule:
+    # 08:00 and 20:00 UTC (09:00/21:00 Lisbon in winter, 10:00/22:00 in summer)
+    - cron: "0 8,20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write   # auto-reply when someone opens an issue (kill switch)
+
+concurrency:
+  group: tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Check houses and bazaar
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKER_CONFIG: ${{ secrets.TRACKER_CONFIG }}
+          STATE_KEY: ${{ secrets.STATE_KEY }}
+        run: |
+          # Without these the run would use the public example config / lose its state.
+          [ -n "$TRACKER_CONFIG" ] && [ -n "$STATE_KEY" ] || { echo "::error::TRACKER_CONFIG and STATE_KEY secrets are required"; exit 1; }
+          python -m tracker
+
+      - name: Save state
+        if: always()
+        run: |
+          git config user.name "tibia-tracker[bot]"
+          git config user.email "tibia-tracker[bot]@users.noreply.github.com"
+          [ -d state ] || exit 0
+          git add -A state/
+          git diff --cached --quiet || (git commit -m "Update tracker state" && git pull --rebase -q && git push)
