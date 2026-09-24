@@ -2,8 +2,8 @@ name: Tibia tracker
 
 on:
   schedule:
-    # 08:00 and 20:00 UTC (09:00/21:00 Lisbon in winter, 10:00/22:00 in summer)
-    - cron: "0 8,20 * * *"
+    # Once a day at 13:00 UTC = 10:00 in Uruguay (UTC-3, no daylight saving)
+    - cron: "0 13 * * *"
   workflow_dispatch:
     inputs:
       test_push:

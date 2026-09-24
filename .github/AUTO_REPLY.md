@@ -1,6 +1,6 @@
 Hi, and thank you for getting in touch. *(This is an automatic reply.)*
 
-**tibia-tracker** is a small, non-commercial fan project by a single Tibia player. Twice a day it checked house auctions on one game world (through the TibiaData API) and a filtered view of the Char Bazaar, then sent me a notification on my phone. It is not affiliated with CipSoft, and it does not republish, sell or share any of the data.
+**tibia-tracker** is a small, non-commercial fan project by a single Tibia player. Once a day it checked house auctions on one game world (through the TibiaData API) and a filtered view of the Char Bazaar, then sent me a notification on my phone. It is not affiliated with CipSoft, and it does not republish, sell or share any of the data.
 
 **When this issue was opened, the tracker stopped making requests.** It will stay stopped until I have read your message and answered you personally.
 

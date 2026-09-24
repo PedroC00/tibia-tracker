@@ -1,6 +1,6 @@
 # Tibia Tracker
 
-A personal, non-commercial fan project. Twice a day it sends a Pushover notification (iPhone + Mac) with:
+A personal, non-commercial fan project. Once a day it sends a Pushover notification (iPhone + Mac) with:
 
 - 🏠 **House auctions on one world**: new auctions, plus houses whose bid went up.
 - ⚔️ **New Char Bazaar auctions** matching skill filters.
@@ -14,7 +14,7 @@ The first successful run sends one summary ("Tracking started…"). After that y
 | What | Source | Notes |
 |---|---|---|
 | Houses | [TibiaData API v4](https://api.tibiadata.com) `/v4/houses/{world}/{town}` | Open-source community API, cached behind Cloudflare |
-| Char Bazaar | tibia.com, parsed with [tibia.py](https://github.com/Galarzaa90/tibia.py) | No open API serves current auctions ([TibiaData PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715) is not merged yet). Requests are filtered server-side, spaced 3 s apart, capped per run, and only happen twice a day. The User-Agent links to this repo. |
+| Char Bazaar | tibia.com, parsed with [tibia.py](https://github.com/Galarzaa90/tibia.py) | No open API serves current auctions ([TibiaData PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715) is not merged yet). Requests are filtered server-side, spaced 3 s apart, capped per run, and only happen once a day. The User-Agent links to this repo. |
 
 ### Current status: characters off, houses on
 
@@ -63,7 +63,7 @@ Each top-level section in the private config (`houses`, `bazaar`, …) replaces 
    To create the key: `mkdir -p .secrets && python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > .secrets/state.key`. Keep a backup: without it the stored state can't be read, and the tracker would start over with a fresh baseline.
 3. **First run**: go to *Actions → Tibia tracker → Run workflow*. You should get the "Tracking started" push.
 
-The workflow runs at 08:00 and 20:00 UTC. GitHub may start a scheduled run a few minutes late.
+The workflow runs once a day at 13:00 UTC (10:00 in Uruguay). GitHub may start scheduled runs late, usually by 5–30 minutes.
 
 **Changing filters:** edit `config.local.yaml`, then run `gh secret set TRACKER_CONFIG < config.local.yaml`.
 

@@ -3,7 +3,7 @@
 # TRACKER_CONFIG GitHub secret in Actions. Each top-level section in those
 # replaces the same section here (see tracker/config.py).
 
-user_agent: "tibia-tracker/0.1 (+https://github.com/PedroC00/tibia-tracker; personal tracker, 2 runs/day)"
+user_agent: "tibia-tracker/0.1 (+https://github.com/PedroC00/tibia-tracker; personal tracker, 1 run/day)"
 
 houses:
   enabled: true
