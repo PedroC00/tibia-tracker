@@ -16,7 +16,7 @@ from cryptography.fernet import Fernet
 from .bazaar import AuctionHit
 from .houses import House
 
-EMPTY = {"houses": {}, "auctions": {}, "failures": {}, "baselined": [], "replied_issues": []}
+EMPTY = {"houses": {}, "auctions": {}, "failures": {}, "baselined": [], "replied_issues": [], "announced": []}
 
 
 def path_for(state_dir: Path, key: Optional[str]) -> Path:

@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from . import guard, notify, state as st
+from . import guard, notify, state as st, watch
 from .config import load_config
 from .bazaar import fetch_high_skill_auctions
 from .houses import fetch_auctioned_houses
@@ -107,6 +107,19 @@ def main() -> int:
 
     if baseline:
         messages.append(notify.baseline_message(baseline.get("houses"), baseline.get("bazaar"), hcfg["world"]))
+
+    # While tibia.com blocks us, wait for TibiaData to serve the bazaar instead.
+    bazaar_off = "bazaar" in halt or not bcfg.get("enabled", True)
+    if run and bazaar_off and "all" not in halt and "tibiadata_bazaar" not in state["announced"]:
+        if watch.bazaar_endpoint_live(ua):
+            state["announced"].append("tibiadata_bazaar")
+            messages.append(notify.Message(
+                title="🎉 TibiaData now serves the Char Bazaar",
+                body=f"{watch.ENDPOINT} is live. Time to switch the bazaar check over to it.",
+                url=watch.PR_URL,
+                url_title="TibiaData PR #715",
+                priority=1,
+            ))
 
     for source, e in errors:
         if isinstance(e, guard.Blocked):

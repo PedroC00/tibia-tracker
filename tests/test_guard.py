@@ -124,3 +124,20 @@ def test_blocked_bazaar_halts_and_stays_halted(monkeypatch, tmp_path):
     (tmp_path / "halt.json").unlink()  # owner resumes
     run_cli(monkeypatch, tmp_path, blocked)
     assert len(calls) == 2
+
+
+def test_tibiadata_bazaar_announced_once_while_halted(monkeypatch, tmp_path):
+    live = {"v": False}
+    monkeypatch.setattr(cli.watch, "bazaar_endpoint_live", lambda ua: live["v"])
+    (tmp_path / "halt.json").write_text(json.dumps({"bazaar": {"reason": "403", "at": "x"}}))
+
+    def never(cfg, ua):
+        raise AssertionError("bazaar must not be fetched while halted")
+
+    code, sent = run_cli(monkeypatch, tmp_path, never)
+    assert code == 0 and sent == []
+    live["v"] = True
+    code, sent = run_cli(monkeypatch, tmp_path, never)
+    assert [m.title for m in sent] == ["🎉 TibiaData now serves the Char Bazaar"]
+    code, sent = run_cli(monkeypatch, tmp_path, never)
+    assert sent == []  # only once
