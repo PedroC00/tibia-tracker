@@ -1,4 +1,4 @@
-"""Entry point: python -m tracker [--dry-run] [--only houses|bazaar] [--contact-only]"""
+"""Entry point: python -m tracker [--dry-run] [--only houses|bazaar] [--contact-only] [--test-push]"""
 from __future__ import annotations
 
 import argparse
@@ -33,6 +33,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="print notifications and don't save state")
     parser.add_argument("--only", choices=["houses", "bazaar"])
     parser.add_argument("--contact-only", action="store_true", help="only check GitHub issues for contact")
+    parser.add_argument("--test-push", action="store_true", help="send one test notification and exit")
     parser.add_argument("--config", type=Path, default=ROOT / "config.yaml")
     parser.add_argument("--state-dir", type=Path, default=ROOT / "state")
     args = parser.parse_args()
@@ -44,6 +45,10 @@ def main() -> int:
     max_msgs = cfg.get("pushover", {}).get("max_messages_per_category", 6)
     hcfg, bcfg = cfg["houses"], cfg["bazaar"]
     notifier = notify.Notifier(args.dry_run)
+    if args.test_push:
+        notifier.send(notify.test_message())
+        log.info("Test notification sent")
+        return 0
     key = state_key()
     state_path = st.path_for(args.state_dir, key)
     halt_path = args.state_dir / "halt.json"

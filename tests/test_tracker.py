@@ -89,3 +89,8 @@ def test_baseline_message_partial_sources():
     msg = notify.baseline_message(None, [auction(1), auction(2, vocation="Elite Knight")], "Antica")
     assert "2 high-skill" in msg.body and "house" not in msg.body
     assert len(msg.body) <= notify.MAX_MESSAGE
+
+
+def test_test_message_fits():
+    msg = notify.test_message()
+    assert msg.title and len(msg.body) <= notify.MAX_MESSAGE and msg.priority == 0

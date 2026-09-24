@@ -162,3 +162,12 @@ def contact_message(issue: dict) -> Message:
         url_title="Open the issue",
         priority=1,
     )
+
+
+def test_message() -> Message:
+    return Message(
+        title="✅ Tibia Tracker test",
+        body="Pushover is set up correctly. House alerts will arrive like this.",
+        url="https://github.com/PedroC00/tibia-tracker/actions",
+        url_title="Open the workflow runs",
+    )

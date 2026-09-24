@@ -5,6 +5,11 @@ on:
     # 08:00 and 20:00 UTC (09:00/21:00 Lisbon in winter, 10:00/22:00 in summer)
     - cron: "0 8,20 * * *"
   workflow_dispatch:
+    inputs:
+      test_push:
+        description: "Only send a test notification (no checks)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -37,6 +42,7 @@ jobs:
           STATE_KEY: ${{ secrets.STATE_KEY }}
         run: |
           # Without these the run would use the public example config / lose its state.
+          if [ "${{ inputs.test_push }}" = "true" ]; then python -m tracker --test-push; exit; fi
           [ -n "$TRACKER_CONFIG" ] && [ -n "$STATE_KEY" ] || { echo "::error::TRACKER_CONFIG and STATE_KEY secrets are required"; exit 1; }
           python -m tracker
 
