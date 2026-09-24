@@ -16,9 +16,9 @@ The first successful run sends one summary ("Tracking started…"). After that y
 | Houses | [TibiaData API v4](https://api.tibiadata.com) `/v4/houses/{world}/{town}` | Open-source community API, cached behind Cloudflare |
 | Char Bazaar | tibia.com, parsed with [tibia.py](https://github.com/Galarzaa90/tibia.py) | No open API serves current auctions ([TibiaData PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715) is not merged yet). Requests are filtered server-side, spaced 3 s apart, capped per run, and only happen twice a day. The User-Agent links to this repo. |
 
-### Current status: bazaar paused
+### Current status: characters off, houses on
 
-tibia.com answers **403** to GitHub's servers (cloud/datacenter IPs are blocked in general), so the kill switch stopped the bazaar check on its first request, as intended. Houses keep running.
+tibia.com answers **403** to GitHub's servers (cloud/datacenter IPs are blocked in general), so the kill switch stopped the bazaar check on its first request, as intended. The bazaar is now disabled in the config (`bazaar.enabled: false`). Houses keep running.
 
 Each run makes one cached request to see whether TibiaData serves the bazaar yet ([PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715), `/v4/charactertrades/ending`, currently 404). When it goes live you get one push, and the bazaar check can be switched over to TibiaData.
 

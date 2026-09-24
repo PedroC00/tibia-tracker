@@ -101,7 +101,11 @@ def run_cli(monkeypatch, tmp_path, fetch_bazaar):
     monkeypatch.setattr(cli, "LOCAL_KEY_FILE", tmp_path / "no.key")
     monkeypatch.setattr(cli, "fetch_high_skill_auctions", fetch_bazaar)
     monkeypatch.setattr(cli.notify.Notifier, "send", lambda self, m: sent.append(m))
-    monkeypatch.setattr(sys, "argv", ["tracker", "--only", "bazaar", "--state-dir", str(tmp_path)])
+    config = tmp_path / "cfg" / "config.yaml"  # isolated from the real (and private) config
+    config.parent.mkdir(exist_ok=True)
+    config.write_text("houses: {world: Antica, towns: [Thais]}\nbazaar: {enabled: true}\n")
+    monkeypatch.setattr(sys, "argv", ["tracker", "--only", "bazaar", "--state-dir", str(tmp_path),
+                                      "--config", str(config)])
     code = cli.main()
     return code, sent
 

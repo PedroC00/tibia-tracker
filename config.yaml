@@ -33,7 +33,8 @@ houses:
   notify_bid_raises: true
 
 bazaar:
-  enabled: true
+  # Off until TibiaData serves the bazaar (PR #715): tibia.com blocks cloud servers.
+  enabled: false
   # Any of: OPEN_PVP, RETRO_OPEN_PVP
   pvp_types: [OPEN_PVP]
   # A character matches if ANY listed skill for its vocation is >= the minimum.
