@@ -1,11 +1,12 @@
 # Tibia Tracker
 
-A personal, non-commercial fan project. Once a day it sends a Pushover notification (iPhone + Mac) with:
+A personal, non-commercial fan project. It sends Pushover notifications (iPhone + Mac) about:
 
-- 🏠 **House auctions on one world**: new auctions, plus houses whose bid went up.
-- ⚔️ **New Char Bazaar auctions** matching skill filters.
-
-The first successful run sends one summary ("Tracking started…"). After that you only hear about new auctions.
+- 🏠 **House auctions on one world**, checked every hour:
+  - once a day, the list of every house up for auction (soonest to end first);
+  - 🆕 a house newly up for auction, within the hour;
+  - ⏳ an auction entering its last hours (12 by default), once per auction.
+- ⚔️ **New Char Bazaar auctions** matching skill filters, checked once a day (currently off, see below).
 
 **Need to reach me?** [Open an issue](../../issues/new). The tracker stops itself right away (see [Kill switch](#kill-switch)).
 
@@ -14,13 +15,13 @@ The first successful run sends one summary ("Tracking started…"). After that y
 | What | Source | Notes |
 |---|---|---|
 | Houses | [TibiaData API v4](https://api.tibiadata.com) `/v4/houses/{world}/{town}` | Open-source community API, cached behind Cloudflare |
-| Char Bazaar | tibia.com, parsed with [tibia.py](https://github.com/Galarzaa90/tibia.py) | No open API serves current auctions ([TibiaData PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715) is not merged yet). Requests are filtered server-side, spaced 3 s apart, capped per run, and only happen once a day. The User-Agent links to this repo. |
+| Char Bazaar | tibia.com, parsed with [tibia.py](https://github.com/Galarzaa90/tibia.py) | No open API serves current auctions ([TibiaData PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715) is not merged yet). Requests are filtered server-side, spaced 3 s apart, capped per run, and only happen once a day, even though the house check is hourly. The User-Agent links to this repo. |
 
 ### Current status: characters off, houses on
 
 tibia.com answers **403** to GitHub's servers (cloud/datacenter IPs are blocked in general), so the kill switch stopped the bazaar check on its first request, as intended. The bazaar is now disabled in the config (`bazaar.enabled: false`). Houses keep running.
 
-Each run makes one cached request to see whether TibiaData serves the bazaar yet ([PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715), `/v4/charactertrades/ending`, currently 404). When it goes live you get one push, and the bazaar check can be switched over to TibiaData.
+Once a day one cached request checks whether TibiaData serves the bazaar yet ([PR #715](https://github.com/tibiadata/tibiadata-api-go/pull/715), `/v4/charactertrades/ending`, currently 404). When it goes live you get one push, and the bazaar check can be switched over to TibiaData.
 
 ## Kill switch
 
@@ -61,9 +62,11 @@ Each top-level section in the private config (`houses`, `bazaar`, …) replaces 
    gh secret set STATE_KEY < .secrets/state.key
    ```
    To create the key: `mkdir -p .secrets && python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > .secrets/state.key`. Keep a backup: without it the stored state can't be read, and the tracker would start over with a fresh baseline.
-3. **First run**: go to *Actions → Tibia tracker → Run workflow*. You should get the "Tracking started" push.
+3. **First run**: go to *Actions → Tibia tracker → Run workflow*. You should get the list of houses for auction.
 
-The workflow runs once a day at 13:00 UTC (10:00 in Uruguay). GitHub may start scheduled runs late, usually by 5–30 minutes.
+The workflow runs every hour. The daily list goes out with the first run from 13:00 UTC on (10:00 in Uruguay); GitHub may start scheduled runs late, usually by 5–30 minutes. If a run is skipped or fails, the next one sends the list.
+
+**Changing the schedule:** `digest_hour_utc` and `ending_within_hours` in the `houses` section set the time of the daily list and how early the ending alert comes.
 
 **Changing filters:** edit `config.local.yaml`, then run `gh secret set TRACKER_CONFIG < config.local.yaml`.
 
@@ -89,7 +92,7 @@ Use this if GitHub Actions stops working for you, for example its schedule gets 
    open -e ~/Library/LaunchAgents/com.pedro.tibiatracker.plist   # replace REPLACE_ME
    launchctl load ~/Library/LaunchAgents/com.pedro.tibiatracker.plist
    ```
-2. Disable the scheduled `Tibia tracker` workflow so both don't run. launchd catches up on a missed run when the Mac wakes.
+2. Disable the scheduled `Tibia tracker` workflow so both don't run. The job runs every hour while the Mac is awake, and the daily list is sent by the first run after it's due.
 3. Keep the `Contact kill switch` workflow enabled. Local runs still respect `state/halt.json`, so run `git pull` before each run (or add it to the job) to pick up halts.
 
 ## Layout

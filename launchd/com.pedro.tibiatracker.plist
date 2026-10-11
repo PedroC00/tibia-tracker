@@ -20,10 +20,8 @@
         <key>PUSHOVER_USER</key>
         <string>REPLACE_ME</string>
     </dict>
-    <key>StartCalendarInterval</key>
-    <array>
-        <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>0</integer></dict>
-    </array>
+    <key>StartInterval</key>
+    <integer>3600</integer>
     <key>StandardOutPath</key>
     <string>/Users/pedrocosta/vs_code/tibia_tracker/logs/tracker.log</string>
     <key>StandardErrorPath</key>

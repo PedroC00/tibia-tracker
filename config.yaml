@@ -3,7 +3,7 @@
 # TRACKER_CONFIG GitHub secret in Actions. Each top-level section in those
 # replaces the same section here (see tracker/config.py).
 
-user_agent: "tibia-tracker/0.1 (+https://github.com/PedroC00/tibia-tracker; personal tracker, 1 run/day)"
+user_agent: "tibia-tracker/0.1 (+https://github.com/PedroC00/tibia-tracker; personal tracker, 1 run/hour)"
 
 houses:
   enabled: true
@@ -30,7 +30,10 @@ houses:
   # Optional filters (remove or set to null to disable)
   max_bid: null        # gold
   min_size: null       # sqm
-  notify_bid_raises: true
+  # The full list is sent once a day, with the first run from this hour on.
+  digest_hour_utc: 13
+  # Alert once when an auction has this many hours left, or fewer.
+  ending_within_hours: 12
 
 bazaar:
   # Off until TibiaData serves the bazaar (PR #715): tibia.com blocks cloud servers.

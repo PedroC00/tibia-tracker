@@ -58,7 +58,6 @@ def main() -> int:
 
     messages = []
     errors = []
-    baseline = {}  # source -> items, for sources succeeding for the first time
 
     # Contact comes first: if someone has reached out, nothing else runs.
     for issue in guard.check_contact(halt, state["replied_issues"], now, args.dry_run):
@@ -75,17 +74,20 @@ def main() -> int:
         errors.append((source, e))
 
     run = not args.contact_only
+    world = hcfg["world"]
+    daily_hour = hcfg.get("digest_hour_utc", 13)
     if run and hcfg.get("enabled", True) and args.only in (None, "houses") and "houses" not in stopped:
         try:
-            houses = fetch_auctioned_houses(hcfg["world"], hcfg["towns"], ua, hcfg.get("max_bid"), hcfg.get("min_size"))
+            houses = fetch_auctioned_houses(world, hcfg["towns"], ua, hcfg.get("max_bid"), hcfg.get("min_size"))
             log.info("%s auctioned houses", len(houses))
-            changes = st.update_houses(state, houses, now)
-            if st.is_baselined(state, "houses"):
-                raised = changes.raised if hcfg.get("notify_bid_raises", True) else []
-                messages += notify.house_messages(hcfg["world"], changes.new, raised, max_msgs)
-            else:
-                baseline["houses"] = houses
-                st.mark_baselined(state, "houses")
+            changes = st.update_houses(state, houses, now, hcfg.get("ending_within_hours", 12))
+            if st.daily_due(state, "digest", now, daily_hour):
+                messages += notify.digest_messages(world, houses, max_msgs)
+                st.mark_daily(state, "digest", now)
+            if st.is_baselined(state, "houses"):  # on the very first run the digest says it all
+                messages += notify.new_house_messages(world, changes.new, max_msgs)
+                messages += notify.ending_messages(world, changes.ending, max_msgs)
+            st.mark_baselined(state, "houses")
             st.record_result(state, "houses", ok=True)
         except guard.Blocked as e:
             blocked("houses", e)
@@ -93,7 +95,11 @@ def main() -> int:
             log.exception("House check failed")
             errors.append(("houses", e))
 
-    if run and bcfg.get("enabled", True) and args.only in (None, "bazaar") and "bazaar" not in stopped:
+    # Houses are checked every run; everything bazaar-related stays at once a day.
+    daily = run and args.only in (None, "bazaar") and st.daily_due(state, "bazaar", now, daily_hour)
+    if daily:
+        st.mark_daily(state, "bazaar", now)
+    if daily and bcfg.get("enabled", True) and "bazaar" not in stopped:
         try:
             result = fetch_high_skill_auctions(bcfg, ua)
             log.info("%s high-skill auctions (%s requests to tibia.com)", len(result.auctions), result.requests)
@@ -101,7 +107,7 @@ def main() -> int:
             if st.is_baselined(state, "bazaar"):
                 messages += notify.auction_messages(new, max_msgs, partial=not result.complete)
             else:
-                baseline["bazaar"] = result.auctions
+                messages.append(notify.baseline_message(result.auctions))
                 st.mark_baselined(state, "bazaar")
             st.record_result(state, "bazaar", ok=True)
         except guard.Blocked as e:
@@ -110,12 +116,9 @@ def main() -> int:
             log.exception("Bazaar check failed")
             errors.append(("bazaar", e))
 
-    if baseline:
-        messages.append(notify.baseline_message(baseline.get("houses"), baseline.get("bazaar"), hcfg["world"]))
-
     # While tibia.com blocks us, wait for TibiaData to serve the bazaar instead.
     bazaar_off = "bazaar" in halt or not bcfg.get("enabled", True)
-    if run and bazaar_off and "all" not in halt and "tibiadata_bazaar" not in state["announced"]:
+    if daily and bazaar_off and "all" not in halt and "tibiadata_bazaar" not in state["announced"]:
         if watch.bazaar_endpoint_live(ua):
             state["announced"].append("tibiadata_bazaar")
             messages.append(notify.Message(

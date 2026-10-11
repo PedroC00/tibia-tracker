@@ -1,6 +1,7 @@
+import itertools
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
@@ -8,6 +9,7 @@ import pytest
 from tracker import __main__ as cli, guard
 
 NOW = datetime(2026, 9, 24, 12, tzinfo=timezone.utc)
+DAYS = itertools.count()
 CHALLENGE = '<html><head><title>Just a moment...</title></head><body>challenges.cloudflare.com</body></html>'
 
 
@@ -91,8 +93,11 @@ def test_contact_check_skipped_outside_actions(monkeypatch):
     assert guard.check_contact({}, [], NOW, False) == []
 
 
-def run_cli(monkeypatch, tmp_path, fetch_bazaar):
+def run_cli(monkeypatch, tmp_path, fetch_bazaar, day=None):
+    """One CLI run. Each call is a new day unless `day` is given: the bazaar is daily."""
     sent = []
+    when = NOW + timedelta(days=next(DAYS) if day is None else day)
+    monkeypatch.setattr(cli.st, "utcnow", lambda: when)
     monkeypatch.setenv("PUSHOVER_TOKEN", "t")
     monkeypatch.setenv("PUSHOVER_USER", "u")
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
@@ -127,6 +132,18 @@ def test_blocked_bazaar_halts_and_stays_halted(monkeypatch, tmp_path):
 
     (tmp_path / "halt.json").unlink()  # owner resumes
     run_cli(monkeypatch, tmp_path, blocked)
+    assert len(calls) == 2
+
+
+def test_bazaar_is_fetched_once_a_day(monkeypatch, tmp_path):
+    calls = []
+
+    def fetch(cfg, ua):
+        calls.append(1)
+        raise RuntimeError("down")
+
+    for day in (0, 0, 1):  # the tracker runs every hour, the bazaar part once a day
+        run_cli(monkeypatch, tmp_path, fetch, day=day)
     assert len(calls) == 2
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass
 from typing import Iterable, List, Optional
@@ -35,6 +36,14 @@ class House:
             "https://www.tibia.com/community/?subtopic=houses&page=view"
             f"&world={quote(self.world)}&houseid={self.id}"
         )
+
+    @property
+    def hours_left(self) -> Optional[int]:
+        """Hours until the auction ends; None while nobody has bid (no end date yet)."""
+        m = re.match(r"(\d+) (minute|hour|day)", self.time_left)
+        if not m:
+            return None
+        return int(m.group(1)) * {"minute": 0, "hour": 1, "day": 24}[m.group(2)]
 
 
 def parse_houses(payload: dict, world: str, town: str) -> List[House]:

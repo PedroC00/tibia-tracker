@@ -5,7 +5,7 @@ import html
 import logging
 import os
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import httpx
 
@@ -43,10 +43,11 @@ def _link(text: str, url: str) -> str:
     return f'<a href="{html.escape(url)}">{html.escape(text)}</a>'
 
 
-def house_line(h: House) -> str:
+def house_line(h: House, link: bool = True) -> str:
+    name = _link(h.name, h.url) if link else html.escape(h.name)
     kind = "GH " if h.guildhall else ""
-    return (f"{_link(h.name, h.url)} ({kind}{html.escape(h.town)}) · {h.size} sqm · "
-            f"bid {gold(h.bid)} · {html.escape(h.time_left or '?')} left")
+    status = f"bid {gold(h.bid)} · {html.escape(h.time_left)} left" if h.time_left else "no bids yet"
+    return f"{name} ({kind}{html.escape(h.town)}) · {h.size} sqm · {status}"
 
 
 def auction_line(a: AuctionHit) -> str:
@@ -76,17 +77,31 @@ def _paginate(title: str, lines: List[str], max_messages: int) -> List[Message]:
     ]
 
 
-def house_messages(world: str, new: List[House], raised: List[Tuple[House, int]], max_messages: int) -> List[Message]:
-    lines = [house_line(h) for h in new]
-    lines += [f"⬆︎ {house_line(h)} (was {gold(old)})" for h, old in raised]
-    if not lines:
+def _soonest_first(houses: List[House]) -> List[House]:
+    """Auctions closest to their end first; houses nobody has bid on last."""
+    return sorted(houses, key=lambda h: (h.hours_left is None, h.hours_left or 0, h.name))
+
+
+def digest_messages(world: str, houses: List[House], max_messages: int) -> List[Message]:
+    """The daily list of every open auction. No links, so more houses fit in one message."""
+    title = f"🏠 {world}: {len(houses)} houses for auction"
+    if not houses:
+        return [Message(title=title, body="No houses for auction right now.")]
+    return _paginate(title, [house_line(h, link=False) for h in _soonest_first(houses)], max_messages)
+
+
+def new_house_messages(world: str, new: List[House], max_messages: int) -> List[Message]:
+    if not new:
         return []
-    parts = []
-    if new:
-        parts.append(f"{len(new)} new")
-    if raised:
-        parts.append(f"{len(raised)} bid raised")
-    return _paginate(f"🏠 {world} houses: {', '.join(parts)}", lines, max_messages)
+    return _paginate(f"🆕 {world}: {len(new)} new for auction",
+                     [house_line(h) for h in _soonest_first(new)], max_messages)
+
+
+def ending_messages(world: str, ending: List[House], max_messages: int) -> List[Message]:
+    if not ending:
+        return []
+    return _paginate(f"⏳ {world}: {len(ending)} ending soon",
+                     [house_line(h) for h in _soonest_first(ending)], max_messages)
 
 
 def auction_messages(new: List[AuctionHit], max_messages: int, partial: bool = False) -> List[Message]:
@@ -98,22 +113,17 @@ def auction_messages(new: List[AuctionHit], max_messages: int, partial: bool = F
     return _paginate(f"⚔️ {len(new)} new high-skill auctions", lines, max_messages)
 
 
-def baseline_message(houses: Optional[List[House]], auctions: Optional[List[AuctionHit]], world: str) -> Message:
-    """First-run summary. A None list means that source wasn't baselined in this run."""
-    lines = ["Tracking started."]
-    if houses is not None:
-        lines.append(f"{len(houses)} {world} house auctions open:")
-        lines += [house_line(h) for h in houses[:3]]
-        if len(houses) > 3:
-            lines.append(f"… and {len(houses) - 3} more")
-    if auctions is not None:
-        by_voc: dict = {}
-        for a in auctions:
-            voc = VOCATION_SHORT.get(a.vocation, a.vocation)
-            by_voc[voc] = by_voc.get(voc, 0) + 1
-        lines.append(f"{len(auctions)} high-skill Open PvP auctions: "
-                     + ", ".join(f"{v} {n}" for v, n in sorted(by_voc.items())))
-    lines.append("From now on you'll only get new auctions.")
+def baseline_message(auctions: List[AuctionHit]) -> Message:
+    """Summary of the first successful bazaar run, sent instead of one alert per auction."""
+    by_voc: dict = {}
+    for a in auctions:
+        voc = VOCATION_SHORT.get(a.vocation, a.vocation)
+        by_voc[voc] = by_voc.get(voc, 0) + 1
+    lines = [
+        "Bazaar tracking started.",
+        f"{len(auctions)} high-skill Open PvP auctions: " + ", ".join(f"{v} {n}" for v, n in sorted(by_voc.items())),
+        "From now on you'll only get new auctions.",
+    ]
     return Message(title="🧭 Tibia Tracker is running", body="\n".join(lines)[:MAX_MESSAGE])
 
 

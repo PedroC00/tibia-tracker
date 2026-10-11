@@ -7,16 +7,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from cryptography.fernet import Fernet
 
 from .bazaar import AuctionHit
 from .houses import House
 
-EMPTY = {"houses": {}, "auctions": {}, "failures": {}, "baselined": [], "replied_issues": [], "announced": []}
+EMPTY = {"houses": {}, "auctions": {}, "failures": {}, "baselined": [], "replied_issues": [], "announced": [],
+         "daily": {}}
 
 
 def path_for(state_dir: Path, key: Optional[str]) -> Path:
@@ -64,29 +65,43 @@ def save(path: Path, state: dict, key: Optional[str] = None) -> None:
 @dataclass
 class HouseChanges:
     new: List[House]
-    raised: List[Tuple[House, int]]  # (house, previous bid)
+    ending: List[House]  # entered the final hours since the last run
 
 
-def update_houses(state: dict, houses: List[House], now: datetime) -> HouseChanges:
+def update_houses(state: dict, houses: List[House], now: datetime, ending_within_hours: int) -> HouseChanges:
     """Diffs against the stored houses, then replaces them with the current auctions."""
     prev = state["houses"]
-    new, raised = [], []
+    new, ending = [], []
     current = {}
     for h in houses:
         key = str(h.id)
         old = prev.get(key)
+        closing = h.hours_left is not None and h.hours_left <= ending_within_hours
         if old is None:
-            new.append(h)
-        elif h.bid > old["bid"]:
-            raised.append((h, old["bid"]))
+            new.append(h)  # its line already shows the time left, so no separate ending alert
+        elif closing and not old.get("ending_notified"):
+            ending.append(h)
         current[key] = {
-            "bid": h.bid,
             "name": h.name,
             "town": h.town,
             "first_seen": old["first_seen"] if old else now.isoformat(),
+            "ending_notified": closing,
         }
     state["houses"] = current  # houses no longer listed have finished
-    return HouseChanges(new=new, raised=raised)
+    return HouseChanges(new=new, ending=ending)
+
+
+def daily_due(state: dict, name: str, now: datetime, hour_utc: int) -> bool:
+    """True once a day from hour_utc on. A missed or failed slot stays due until marked."""
+    slot = now.replace(hour=hour_utc, minute=0, second=0, microsecond=0)
+    if slot > now:
+        slot -= timedelta(days=1)
+    last = state["daily"].get(name)
+    return last is None or datetime.fromisoformat(last) < slot
+
+
+def mark_daily(state: dict, name: str, now: datetime) -> None:
+    state["daily"][name] = now.isoformat()
 
 
 def update_auctions(state: dict, auctions: List[AuctionHit], now: datetime) -> List[AuctionHit]:
