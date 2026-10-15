@@ -1,0 +1,36 @@
+name: Website
+
+# Publishes site/ to GitHub Pages. The page holds no personal data: the world and
+# alerts are chosen in the browser and stay there. It asks search engines not to
+# index it, and nothing in the repo links to it.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      # functions/ only runs on Cloudflare Pages; there is no server here.
+      - run: rsync -a --exclude functions site/ _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

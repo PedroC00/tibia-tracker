@@ -350,7 +350,9 @@ async function checkBazaar() {
     box.innerHTML = e.status === 404
       ? `<strong>Waiting for TibiaData.</strong> Character auctions aren't available yet
          (<a href="${BAZAAR_PR}" target="_blank" rel="noopener">pull request #715</a> is still open).
-         You can set up your alerts now. They'll start working once it goes live, and the tracker will notify you.`
+         ${state.synced
+           ? "You can set up your alerts now. They'll start working once it goes live, and the tracker will notify you."
+           : "You can set up alerts now to see matches on this page once it goes live. They're saved in this browser only; phone notifications use the tracker's own settings."}`
       : `<strong>Couldn't reach TibiaData</strong> (${esc(e.message)}). Your alerts are still saved.`;
   }
   renderAuctions();

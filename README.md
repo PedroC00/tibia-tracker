@@ -97,18 +97,20 @@ Use this if GitHub Actions stops working for you, for example its schedule gets 
 
 ## Website
 
-`site/` is a private dashboard: current house auctions with pictures, details and links, plus a Characters tab for creating bazaar alerts. It reads TibiaData straight from the browser, so it needs no server of its own. Your world, towns and alerts are stored in Cloudflare KV, never in this repo.
+`site/` is a dashboard of current house auctions with pictures, details and links, plus a Characters tab with a transfer guide and bazaar alerts. It reads TibiaData straight from the browser, so it needs no server of its own.
 
-It's hosted on Cloudflare Pages behind Cloudflare Access, both free:
+It's published to GitHub Pages by the `Website` workflow whenever `site/` changes. The page holds no personal data: you pick your world on the first visit and it's saved in that browser only, as are alerts. It asks search engines not to index it, and nothing in the repo links to it. Phone notifications don't depend on it; they keep using the tracker's private config.
 
-1. **Pages:** Workers & Pages → Create → Pages → connect this repo. Root directory `site`, no build command, build output directory empty (the functions in `site/functions` deploy with it).
+To turn it on: Settings → Pages → Build and deployment → Source: **GitHub Actions**, then run the `Website` workflow once.
+
+To preview locally, run `python3 -m http.server -d site` and open http://localhost:8000.
+
+**Optional, private hosting:** on Cloudflare Pages behind Cloudflare Access (both free), the site needs a login and syncs settings and alerts across devices through `site/functions`:
+
+1. **Pages:** Workers & Pages → Create → Pages → connect this repo. Root directory `site`, no build command, build output directory empty.
 2. **KV:** create a namespace and bind it to the project as `TRACKER_KV` (Settings → Bindings).
 3. **Access:** Zero Trust → Access → Applications → add a self-hosted app for the `*.pages.dev` address (include previews), with a policy that allows only your email.
-4. **Variables:** in the Pages project, set `ACCESS_TEAM_DOMAIN` (e.g. `yourteam.cloudflareaccess.com`) and `ACCESS_AUD` (the app's Application Audience tag), and `DEFAULT_WORLD` (the world the site opens on), then redeploy. The `/api` endpoints refuse every request without a valid Access token.
-
-To preview locally, run `python3 -m http.server -d site` and open http://localhost:8000. Without `/api`, settings are kept in that browser only.
-
-Character alerts are saved now. The hourly tracker will start using them once TibiaData's bazaar endpoint is live.
+4. **Variables:** set `ACCESS_TEAM_DOMAIN` (e.g. `yourteam.cloudflareaccess.com`), `ACCESS_AUD` (the app's Application Audience tag) and `DEFAULT_WORLD` (the world the site opens on), then redeploy. The `/api` endpoints refuse every request without a valid Access token.
 
 ## Layout
 
@@ -120,5 +122,5 @@ tracker/state.py    (encrypted) state, diffing, failure streaks
 tracker/guard.py    kill switch: block detection, halts, contact auto-reply
 tracker/notify.py   message formatting + Pushover
 tracker/__main__.py orchestration / CLI
-site/               private dashboard (Cloudflare Pages + Access)
+site/               dashboard (GitHub Pages; optional private Cloudflare hosting)
 ```
