@@ -43,8 +43,8 @@ def _link(text: str, url: str) -> str:
     return f'<a href="{html.escape(url)}">{html.escape(text)}</a>'
 
 
-def house_line(h: House, link: bool = True) -> str:
-    name = _link(h.name, h.url) if link else html.escape(h.name)
+def house_line(h: House) -> str:
+    name = _link(h.name, h.url)
     kind = "GH " if h.guildhall else ""
     status = f"bid {gold(h.bid)} · {html.escape(h.time_left)} left" if h.time_left else "no bids yet"
     return f"{name} ({kind}{html.escape(h.town)}) · {h.size} sqm · {status}"
@@ -83,11 +83,11 @@ def _soonest_first(houses: List[House]) -> List[House]:
 
 
 def digest_messages(world: str, houses: List[House], max_messages: int) -> List[Message]:
-    """The daily list of every open auction. No links, so more houses fit in one message."""
+    """The daily list of every open auction, each linked to its auction page."""
     title = f"🏠 {world}: {len(houses)} houses for auction"
     if not houses:
         return [Message(title=title, body="No houses for auction right now.")]
-    return _paginate(title, [house_line(h, link=False) for h in _soonest_first(houses)], max_messages)
+    return _paginate(title, [house_line(h) for h in _soonest_first(houses)], max_messages)
 
 
 def new_house_messages(world: str, new: List[House], max_messages: int) -> List[Message]:

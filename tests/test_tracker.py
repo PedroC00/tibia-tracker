@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -79,8 +80,8 @@ def test_digest_lists_every_house_soonest_first():
     houses = [house(1, bid=0, time_left=""), house(2, time_left="2 days"), house(3, time_left="5 hours")]
     [msg] = notify.digest_messages("Antica", houses, max_messages=6)
     assert msg.title == "🏠 Antica: 3 houses for auction"
-    assert [line.split(" (")[0] for line in msg.body.split("\n")] == ["House 3", "House 2", "House 1"]
-    assert "no bids yet" in msg.body and "href" not in msg.body
+    assert [re.search(r">(.*?)</a>", line)[1] for line in msg.body.split("\n")] == ["House 3", "House 2", "House 1"]
+    assert "no bids yet" in msg.body and msg.body.count("houseid=") == 3
     [empty] = notify.digest_messages("Antica", [], max_messages=6)
     assert "0 houses" in empty.title and empty.body
 
