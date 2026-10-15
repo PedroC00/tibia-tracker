@@ -17,6 +17,13 @@ log = logging.getLogger(__name__)
 API = "https://api.tibiadata.com/v4/houses/{world}/{town}"
 TOWN_NOT_FOUND = 11006
 
+# Houses only one vocation can enter, by house id. Neither tibia.com nor TibiaData
+# says so; TibiaWiki notes it on the house pages, and these are the only ones.
+# Keep in sync with VOCATION_ONLY in site/app.js.
+VOCATION_ONLY = {
+    10505: "sorcerers", 10508: "sorcerers", 10510: "sorcerers",  # Sorcerer's Avenue Labs, Sorcerer Guild basement in Thais
+}
+
 
 @dataclass
 class House:
@@ -36,6 +43,10 @@ class House:
             "https://www.tibia.com/community/?subtopic=houses&page=view"
             f"&world={quote(self.world)}&houseid={self.id}"
         )
+
+    @property
+    def vocation_only(self) -> Optional[str]:
+        return VOCATION_ONLY.get(self.id)
 
     @property
     def hours_left(self) -> Optional[int]:

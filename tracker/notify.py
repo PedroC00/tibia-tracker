@@ -46,8 +46,9 @@ def _link(text: str, url: str) -> str:
 def house_line(h: House) -> str:
     name = _link(h.name, h.url)
     kind = "GH " if h.guildhall else ""
+    only = f", {h.vocation_only} only" if h.vocation_only else ""
     status = f"bid {gold(h.bid)} · {html.escape(h.time_left)} left" if h.time_left else "no bids yet"
-    return f"{name} ({kind}{html.escape(h.town)}) · {h.size} sqm · {status}"
+    return f"{name} ({kind}{html.escape(h.town)}{only}) · {h.size} sqm · {status}"
 
 
 def auction_line(a: AuctionHit) -> str:

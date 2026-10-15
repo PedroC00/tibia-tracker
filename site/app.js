@@ -23,6 +23,13 @@ const LABELS = {
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const gold = (n) => Number(n).toLocaleString("en-US");
+// Tibia shorthand: 800K, 2.5KK (one decimal at most).
+const shortGold = (n) => {
+  const short = (size) => Number((n / size).toFixed(n >= 100 * size ? 0 : 1));
+  if (n >= 999_500) return `${short(1e6)}KK`;
+  if (n >= 1000) return `${short(1e3)}K`;
+  return String(n);
+};
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const state = {
@@ -136,6 +143,13 @@ function houseUrl(world, id) {
   return `https://www.tibia.com/community/?subtopic=houses&page=view&world=${encodeURIComponent(world)}&houseid=${id}`;
 }
 
+// Houses only one vocation can enter, by house id. Neither tibia.com nor TibiaData
+// says so; TibiaWiki notes it on the house pages, and these are the only ones.
+// Keep in sync with VOCATION_ONLY in tracker/houses.py.
+const VOCATION_ONLY = {
+  10505: "Sorcerers", 10508: "Sorcerers", 10510: "Sorcerers",  // Sorcerer's Avenue Labs, Sorcerer Guild basement in Thais
+};
+
 const houseImg = (id) => `https://static.tibia.com/images/houses/house_${id}.png`;
 
 async function fetchHouses(world, towns, force) {
@@ -186,25 +200,63 @@ function filteredHouses() {
     .sort(SORTS[$("#f-sort").value]);
 }
 
+const ICONS = {
+  clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  bed: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18V7m0 6h18v5M3 13V11a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m10 0v-1a3 3 0 0 0-3-3h-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  tag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/></svg>',
+};
+
+// A house's bed count never changes, so it's fetched once and kept in this browser.
+let beds = {};
+try { beds = JSON.parse(localStorage.getItem("tt.beds")) || {}; } catch { /* private mode */ }
+
+const bedsText = (n) => (n === undefined ? "… beds" : `${n} bed${n === 1 ? "" : "s"}`);
+
+async function fillBeds(world, ids) {
+  const missing = ids.filter((id) => beds[id] === undefined);
+  await mapLimited(missing, 4, async (id) => {
+    try {
+      const n = (await getJSON(`${API}/house/${encodeURIComponent(world)}/${id}`)).house?.beds;
+      if (typeof n === "number") beds[id] = n;
+    } catch { /* leave it unknown */ }
+    for (const el of document.querySelectorAll(`[data-beds="${id}"]`)) {
+      el.lastChild.textContent = beds[id] === undefined ? "? beds" : bedsText(beds[id]);
+    }
+  });
+  try { localStorage.setItem("tt.beds", JSON.stringify(beds)); } catch { /* full */ }
+}
+
+// Joins the last two words so a short ending like "2c" never wraps alone.
+const keepLastWords = (name) => esc(name).replace(/ (\S+)$/, "\u00a0$1");
+
 function houseCard(h) {
   const soon = h.hours !== null && h.hours <= ENDING_SOON_HOURS;
-  const status = h.timeLeft ? `${esc(h.timeLeft)} left` : "No bids yet";
+  const ends = h.timeLeft ? `${esc(h.timeLeft)} left` : "Starts at first bid";
+  const tags = [];
+  if (VOCATION_ONLY[h.id]) tags.push(`<span class="badge badge-warn" title="Only ${VOCATION_ONLY[h.id].toLowerCase()} can enter this house">${VOCATION_ONLY[h.id]} only</span>`);
+  if (h.guildhall) tags.push('<span class="badge badge-gold">Guildhall</span>');
   return `
-    <article class="card">
-      <div class="card-top">
-        <img class="thumb" src="${houseImg(h.id)}" alt="" loading="lazy" width="72" height="72" onerror="this.style.visibility='hidden'">
+    <article class="card house-card${soon ? " is-soon" : ""}">
+      <button class="house-img" data-details="${h.id}" aria-label="Details for ${esc(h.name)}">
+        <img src="${houseImg(h.id)}" alt="" loading="lazy" width="150" height="150" onerror="this.style.visibility='hidden'">
+      </button>
+      <div class="house-info">
         <div>
-          <div class="card-title">${esc(h.name)}</div>
-          <div class="card-sub">${esc(h.town)}${h.guildhall ? '<span class="badge badge-gold">Guildhall</span>' : ""}${soon ? '<span class="badge badge-hot">Ending soon</span>' : ""}</div>
+          <h3 class="house-name">${keepLastWords(h.name)}</h3>
+          <div class="house-town">${esc(h.town)}</div>
+          ${tags.length ? `<div class="house-tags">${tags.join("")}</div>` : ""}
+        </div>
+        <div class="house-size">
+          <span class="amount">${h.size}<small> sqm</small></span>
+          <span class="meta" data-beds="${h.id}">${ICONS.bed}<span>${bedsText(beds[h.id])}</span></span>
+        </div>
+        <div class="house-meta">
+          <span class="meta bid" title="${h.bid ? `${gold(h.bid)} gold` : ""}">${ICONS.tag}${h.bid ? `${shortGold(h.bid)} bid` : "No bids yet"}</span>
+          <span class="meta${soon ? " hot" : ""}">${ICONS.clock}${ends}</span>
         </div>
       </div>
-      <div class="stats">
-        <div class="stat"><span>Bid</span><b class="gold">${h.bid ? gold(h.bid) : "—"}</b></div>
-        <div class="stat"><span>Size</span><b>${h.size} sqm</b></div>
-        <div class="stat"><span>Ends</span><b>${status}</b></div>
-      </div>
-      <div class="card-actions">
-        <button class="btn btn-small" data-details="${h.id}">Details</button>
+      <div class="house-actions">
+        <button class="btn btn-small btn-ghost" data-details="${h.id}">Details</button>
         <a class="btn btn-small btn-primary" href="${esc(houseUrl(state.world, h.id))}" target="_blank" rel="noopener">View auction ↗</a>
       </div>
     </article>`;
@@ -218,6 +270,7 @@ function renderHouses() {
     : `<div class="empty">${state.houses.length ? "No houses match these filters." : "No houses are up for auction in the selected towns right now."}</div>`;
   const shown = list.length === state.houses.length ? `${list.length}` : `${list.length} of ${state.houses.length}`;
   $("#houses-summary").textContent = `${shown} houses on ${state.world} · updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  fillBeds(state.world, list.map((h) => h.id));
 }
 
 async function loadHouses(force = false) {
@@ -255,8 +308,9 @@ async function openHouse(id) {
   const end = auction.auction_end ? new Date(auction.auction_end) : null;
   const rows = [
     ["Town", esc(h.town) + (h.guildhall ? " · guildhall" : "")],
+    VOCATION_ONLY[id] ? ["Access", `<span class="warn">Only ${VOCATION_ONLY[id].toLowerCase()} can enter</span>`] : null,
     ["Size", `${h.size} sqm`],
-    d?.beds ? ["Beds", d.beds] : null,
+    (d?.beds ?? beds[id]) !== undefined ? ["Beds", d?.beds ?? beds[id]] : null,
     ["Rent", `${gold(h.rent)} gold / month`],
     ["Current bid", h.bid ? `<span style="color:var(--gold)">${gold(h.bid)} gold</span>` : "No bids yet"],
     auction.current_bidder ? ["Top bidder", esc(auction.current_bidder)] : null,

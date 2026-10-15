@@ -92,6 +92,12 @@ def test_house_alerts():
     [ending] = notify.ending_messages("Antica", [house(2, time_left="5 hours")], 6)
     assert "new" in new.title and "houseid=1" in new.body
     assert "ending" in ending.title and "5 hours left" in ending.body
+    assert "only" not in new.body
+
+
+def test_vocation_only_house_is_marked():
+    line = notify.house_line(house(10510, name="Sorcerer's Avenue Labs 2c"))
+    assert "(Thais, sorcerers only) · 40 sqm" in line
 
 
 def test_auction_diff_and_prune():
