@@ -64,7 +64,7 @@ Each top-level section in the private config (`houses`, `bazaar`, …) replaces 
    To create the key: `mkdir -p .secrets && python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" > .secrets/state.key`. Keep a backup: without it the stored state can't be read, and the tracker would start over with a fresh baseline.
 3. **First run**: go to *Actions → Tibia tracker → Run workflow*. You should get the list of houses for auction.
 
-The workflow runs every hour. The daily list goes out with the first run from 13:00 UTC on (10:00 in Uruguay); GitHub may start scheduled runs late, usually by 5–30 minutes. If a run is skipped or fails, the next one sends the list.
+The workflow runs every hour. The daily list goes out with the first run from 13:00 UTC on (10:00 UTC-3); GitHub may start scheduled runs late, usually by 5–30 minutes. If a run is skipped or fails, the next one sends the list.
 
 **Changing the schedule:** `digest_hour_utc` and `ending_within_hours` in the `houses` section set the time of the daily list and how early the ending alert comes.
 

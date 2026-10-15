@@ -3,7 +3,7 @@ name: Tibia tracker
 on:
   schedule:
     # Every hour, for new and ending house auctions. The daily list goes out with the
-    # first run from houses.digest_hour_utc on (13:00 UTC = 10:00 in Uruguay).
+    # first run from houses.digest_hour_utc on (13:00 UTC = 10:00 UTC-3).
     - cron: "7 * * * *"
   workflow_dispatch:
     inputs:
