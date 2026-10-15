@@ -39,6 +39,8 @@
         <button class="btn" id="refresh-houses">Refresh</button>
       </div>
 
+      <details class="filters" id="filters">
+        <summary>Filter and sort <span class="filters-count" id="filters-count" hidden></span></summary>
       <div class="toolbar">
         <input type="search" id="f-search" placeholder="Search by name" aria-label="Search by name">
         <select id="f-town" aria-label="Town"><option value="">All towns</option></select>
@@ -53,6 +55,7 @@
         <input type="number" id="f-minsize" min="0" placeholder="Min sqm" aria-label="Minimum size (sqm)">
         <label class="check"><input type="checkbox" id="f-guildhalls" checked> Guildhalls</label>
       </div>
+      </details>
 
       <div id="houses-error" class="banner banner-error" hidden></div>
       <div id="houses-grid" class="grid"></div>

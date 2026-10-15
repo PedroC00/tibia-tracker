@@ -264,6 +264,11 @@ function houseCard(h) {
 
 function renderHouses() {
   const list = filteredHouses();
+  // The filters start collapsed, so say on the toggle when any are narrowing the list.
+  const active = ["#f-search", "#f-town", "#f-maxbid", "#f-minsize"].filter((id) => $(id).value.trim()).length
+    + ($("#f-guildhalls").checked ? 0 : 1) + ($("#f-sort").value === "ending" ? 0 : 1);
+  $("#filters-count").hidden = !active;
+  $("#filters-count").textContent = active;
   const grid = $("#houses-grid");
   grid.innerHTML = list.length
     ? list.map(houseCard).join("")

@@ -100,6 +100,17 @@ input:focus, select:focus, .btn:focus-visible, .tab:focus-visible { outline: 2px
 .check { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; cursor: pointer; }
 .check input { width: auto; accent-color: var(--gold); }
 
+.filters { margin-bottom: 16px; }
+.filters summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  color: var(--muted); font-weight: 600; font-size: .9rem; padding: 4px 0;
+}
+.filters summary::-webkit-details-marker { display: none; }
+.filters summary::before { content: "▸"; transition: transform .15s; }
+.filters[open] summary::before { transform: rotate(90deg); }
+.filters summary:hover { color: var(--text); }
+.filters-count { background: var(--gold); color: #1a1405; border-radius: 999px; font-size: .72rem; font-weight: 800; padding: 0 7px; line-height: 1.5; }
+.filters .toolbar { margin: 10px 0 0; }
 .toolbar {
   display: grid; gap: 8px; margin-bottom: 18px;
   grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr auto; align-items: center;
