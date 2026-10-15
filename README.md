@@ -104,7 +104,7 @@ It's hosted on Cloudflare Pages behind Cloudflare Access, both free:
 1. **Pages:** Workers & Pages → Create → Pages → connect this repo. Root directory `site`, no build command, build output directory empty (the functions in `site/functions` deploy with it).
 2. **KV:** create a namespace and bind it to the project as `TRACKER_KV` (Settings → Bindings).
 3. **Access:** Zero Trust → Access → Applications → add a self-hosted app for the `*.pages.dev` address (include previews), with a policy that allows only your email.
-4. **Variables:** in the Pages project, set `ACCESS_TEAM_DOMAIN` (e.g. `yourteam.cloudflareaccess.com`) and `ACCESS_AUD` (the app's Application Audience tag), then redeploy. The `/api` endpoints refuse every request without a valid Access token.
+4. **Variables:** in the Pages project, set `ACCESS_TEAM_DOMAIN` (e.g. `yourteam.cloudflareaccess.com`) and `ACCESS_AUD` (the app's Application Audience tag), and `DEFAULT_WORLD` (the world the site opens on), then redeploy. The `/api` endpoints refuse every request without a valid Access token.
 
 To preview locally, run `python3 -m http.server -d site` and open http://localhost:8000. Without `/api`, settings are kept in that browser only.
 

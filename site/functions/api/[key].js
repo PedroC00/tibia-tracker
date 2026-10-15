@@ -2,7 +2,8 @@
 // Every request must carry a valid Cloudflare Access token, so the data stays
 // private even if Access were misconfigured. Needs these Pages settings:
 //   KV binding TRACKER_KV, env vars ACCESS_TEAM_DOMAIN (xyz.cloudflareaccess.com)
-//   and ACCESS_AUD (the Access application's audience tag).
+//   and ACCESS_AUD (the Access application's audience tag). Optional DEFAULT_WORLD
+//   is the world shown until one is saved, so it never appears in this public repo.
 
 const KEYS = new Set(["settings", "alerts"]);
 const MAX_BODY = 64 * 1024;
@@ -49,7 +50,10 @@ export async function onRequest({ request, env, params }) {
   if (!authorized) return new Response("Unauthorized", { status: 401 });
 
   if (request.method === "GET") {
-    const value = await env.TRACKER_KV.get(params.key);
+    let value = await env.TRACKER_KV.get(params.key);
+    if (value === null && params.key === "settings" && env.DEFAULT_WORLD) {
+      value = JSON.stringify({ world: env.DEFAULT_WORLD });
+    }
     return new Response(value ?? "null", {
       headers: { "content-type": "application/json", "cache-control": "no-store" },
     });

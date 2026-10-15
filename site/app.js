@@ -28,6 +28,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const state = {
   settings: { world: "", towns: TOWNS.slice() },
   alerts: [],
+  world: "",  // the world on screen; starts at the default from settings
   houses: [],
   synced: false,
 };
@@ -96,8 +97,33 @@ async function mapLimited(items, limit, fn) {
 
 let worldsPromise;
 function loadWorlds() {
-  worldsPromise ??= getJSON(`${API}/worlds`).then((d) => d.worlds.regular_worlds.map((w) => w.name).sort());
+  worldsPromise ??= getJSON(`${API}/worlds`)
+    .then((d) => d.worlds.regular_worlds.sort((a, b) => a.name.localeCompare(b.name)))
+    .catch((e) => { worldsPromise = null; throw e; });
   return worldsPromise;
+}
+
+// Character World Transfer rules from the Tibia manual (Extra Services): PvP may
+// only stay the same or get milder, worlds protected by BattlEye since launch only
+// take characters from such worlds, blocked worlds take none, and characters on
+// locked worlds can only move to other locked worlds.
+const PVP_RANK = { "Optional PvP": 0, "Open PvP": 1, "Retro Open PvP": 1, "Hardcore PvP": 2, "Retro Hardcore PvP": 2 };
+const TRANSFER_MANUAL = "https://www.tibia.com/gameguides/?subtopic=manual&section=products";
+
+function canTransfer(from, to) {
+  if (from.name === to.name) return true;
+  if (to.transfer_type === "blocked") return false;
+  if (from.transfer_type === "locked" && to.transfer_type !== "locked") return false;
+  if ((PVP_RANK[from.pvp_type] ?? -1) < (PVP_RANK[to.pvp_type] ?? 0)) return false;
+  if (to.battleye_date === "release" && from.battleye_date !== "release") return false;
+  return true;
+}
+
+async function transferSources(target) {
+  const worlds = await loadWorlds();
+  const to = worlds.find((w) => w.name === target);
+  if (!to) return null;
+  return { to, worlds, from: new Set(worlds.filter((w) => canTransfer(w, to)).map((w) => w.name)) };
 }
 
 function hoursLeft(timeLeft) {
@@ -179,7 +205,7 @@ function houseCard(h) {
       </div>
       <div class="card-actions">
         <button class="btn btn-small" data-details="${h.id}">Details</button>
-        <a class="btn btn-small btn-primary" href="${esc(houseUrl(state.settings.world, h.id))}" target="_blank" rel="noopener">View auction ↗</a>
+        <a class="btn btn-small btn-primary" href="${esc(houseUrl(state.world, h.id))}" target="_blank" rel="noopener">View auction ↗</a>
       </div>
     </article>`;
 }
@@ -191,11 +217,12 @@ function renderHouses() {
     ? list.map(houseCard).join("")
     : `<div class="empty">${state.houses.length ? "No houses match these filters." : "No houses are up for auction in the selected towns right now."}</div>`;
   const shown = list.length === state.houses.length ? `${list.length}` : `${list.length} of ${state.houses.length}`;
-  $("#houses-summary").textContent = `${shown} houses on ${state.settings.world} · updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+  $("#houses-summary").textContent = `${shown} houses on ${state.world} · updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 async function loadHouses(force = false) {
-  const { world, towns } = state.settings;
+  const { world } = state;
+  const { towns } = state.settings;
   if (!world) return;
   $("#houses-error").hidden = true;
   $("#houses-summary").textContent = `Loading houses on ${world}…`;
@@ -215,7 +242,7 @@ async function loadHouses(force = false) {
 
 async function openHouse(id) {
   const h = state.houses.find((x) => x.id === id);
-  const world = state.settings.world;
+  const world = state.world;
   const dlg = $("#house-dialog");
   $("#hd-title").textContent = h.name;
   $("#hd-body").innerHTML = '<div class="skeleton" style="height:150px"></div>';
@@ -285,6 +312,7 @@ function alertChips(a) {
   if (a.skill) chips.push(`${LABELS.skill[a.skill]} ${a.min_skill || 0}–${a.max_skill || "∞"}`);
   if (a.search) chips.push(`${LABELS.search_type[a.search_type]}: “${a.search}”`);
   if (a.max_bid) chips.push(`≤ ${gold(a.max_bid)} TC`);
+  if (a.transfer_to) chips.push(`Can move to ${a.transfer_to}`);
   return chips.length ? chips : ["Any character"];
 }
 
@@ -324,11 +352,18 @@ async function renderAuctions() {
   const list = $("#auctions-list");
   list.innerHTML = '<div class="skeleton"></div>'.repeat(3);
   const byId = new Map();
+  const movable = {};
+  let here = null;
   try {
+    for (const w of new Set([state.world, ...active.map((a) => a.transfer_to)].filter(Boolean))) {
+      movable[w] = (await transferSources(w))?.from;
+    }
+    here = movable[state.world];
     await mapLimited(active, 2, async (a) => {
       const data = await getJSON(`${API}/charactertrades/ending?${alertQuery(a)}`);
       for (const x of data.charactertrades?.auction_list || []) {
         if (a.max_bid && x.bid > a.max_bid) continue;
+        if (a.transfer_to && movable[a.transfer_to] && !movable[a.transfer_to].has(x.world)) continue;
         const hit = byId.get(x.auction_id) || { ...x, alerts: [] };
         hit.alerts.push(a.label);
         byId.set(x.auction_id, hit);
@@ -347,7 +382,10 @@ async function renderAuctions() {
         <div class="stat"><span>${x.bid_type === "current" ? "Bid" : "Min bid"}</span><b class="gold">${gold(x.bid)} TC</b></div>
         <div class="stat" style="grid-column:span 2"><span>Ends</span><b>${esc(new Date(x.auction_end).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" }))}</b></div>
       </div>
-      <div class="chips">${x.alerts.map((l) => `<span class="chip">${esc(l)}</span>`).join("")}</div>
+      <div class="chips">
+        ${here ? (here.has(x.world) ? `<span class="chip chip-ok">Can move to ${esc(state.world)}</span>` : `<span class="chip chip-no">Can't move to ${esc(state.world)}</span>`) : ""}
+        ${x.alerts.map((l) => `<span class="chip">${esc(l)}</span>`).join("")}
+      </div>
       <div class="card-actions">
         <a class="btn btn-small btn-primary" href="https://www.tibia.com/charactertrade/?subtopic=currentcharactertrades&page=details&auctionid=${Number(x.auction_id)}" target="_blank" rel="noopener">View auction ↗</a>
       </div>
@@ -358,17 +396,19 @@ const ALERT_FIELDS = ["label", "world", "pvp_type", "battleye", "vocation", "min
 const NUMERIC = new Set(["min_level", "max_level", "min_skill", "max_skill", "max_bid"]);
 let editingId = null;
 
-async function openAlertForm(id = null) {
+async function openAlertForm(id = null, preset = {}) {
   editingId = id;
   const form = $("#alert-form");
   form.reset();
-  const a = state.alerts.find((x) => x.id === id) || { world: state.settings.world, enabled: true, search_type: "item" };
+  const a = state.alerts.find((x) => x.id === id) || { world: state.settings.world, enabled: true, search_type: "item", ...preset };
   $("#af-title").textContent = id ? "Edit alert" : "New character alert";
   $("#af-delete").hidden = !id;
   await fillWorldSelect(form.elements.world, "Any world");
   for (const k of ALERT_FIELDS) form.elements[k].value = a[k] ?? "";
   form.elements.search_type.value = a.search_type || "item";
   form.elements.enabled.checked = a.enabled !== false;
+  form.elements.transfer_only.checked = Boolean(a.transfer_to);
+  $("#af-transfer-world").textContent = a.transfer_to || state.world;
   $("#alert-dialog").showModal();
 }
 
@@ -382,13 +422,74 @@ async function saveAlerts() {
   renderAuctions();
 }
 
+async function renderTransferGuide() {
+  const world = state.world;
+  for (const el of document.querySelectorAll("[data-world]")) el.textContent = world;
+  $("#transfer-guide").hidden = !world;
+  if (!world) return;
+  const body = $("#tg-body");
+  let t;
+  try {
+    t = await transferSources(world);
+  } catch {
+    body.innerHTML = '<p class="muted">Couldn\'t load the world list from TibiaData. Try again later.</p>';
+    return;
+  }
+  if (!t || world !== state.world) return;
+  const { to, worlds, from } = t;
+  $("#tg-count").textContent = to.transfer_type === "blocked" ? "Transfers closed" : `${from.size - 1} of ${worlds.length - 1} worlds`;
+
+  const pvpFrom = {
+    0: "any PvP type (Optional, Open, Retro Open, Hardcore, Retro Hardcore)",
+    1: "Open, Retro Open, Hardcore and Retro Hardcore PvP worlds. Not from Optional PvP",
+    2: "Hardcore and Retro Hardcore PvP worlds only",
+  }[PVP_RANK[to.pvp_type]] || "worlds with the same or harsher PvP";
+  const rules = [
+    to.transfer_type === "blocked"
+      ? `<li class="rule-no"><b>${esc(world)} is blocked for transfers right now.</b> Only characters already on ${esc(world)} can play there. That can change, so check again later.</li>`
+      : to.transfer_type === "locked"
+        ? `<li><b>${esc(world)} is a locked world.</b> Characters can move in from anywhere, but once there they can only move on to other locked worlds.</li>`
+        : `<li><b>${esc(world)} accepts transfers.</b></li>`,
+    `<li><b>PvP:</b> ${esc(world)} is ${esc(to.pvp_type)}, so characters can come from ${pvpFrom}. A character can only move to the same or a milder PvP type.</li>`,
+    to.battleye_date === "release"
+      ? `<li><b>BattlEye:</b> ${esc(world)} has been protected since launch (green shield), so characters must also come from a world protected since launch.</li>`
+      : `<li><b>BattlEye:</b> ${esc(world)} wasn't protected from launch (yellow shield), so BattlEye doesn't limit where characters can come from.</li>`,
+  ];
+
+  const byRegion = {};
+  for (const w of worlds) {
+    if (!from.has(w.name)) continue;
+    (byRegion[w.location] ||= []).push(w);
+  }
+  const regions = Object.keys(byRegion).sort((a, b) => (a === to.location ? -1 : b === to.location ? 1 : a.localeCompare(b)));
+  const worldList = to.transfer_type === "blocked" ? "" : `
+    <h3 class="guide-h">Worlds characters can come from</h3>
+    ${regions.map((r) => `
+      <div class="region"><span class="region-name">${esc(r)}${r === to.location ? " · same region, best ping" : ""}</span>
+        <div class="chips">${byRegion[r].map((w) => `<span class="chip${w.name === world ? " chip-ok" : ""}" title="${esc(w.pvp_type)}">${esc(w.name)}</span>`).join("")}</div>
+      </div>`).join("")}
+    <button class="btn btn-primary btn-small" data-transfer-alert>Create an alert for characters that can move to ${esc(world)}</button>`;
+
+  body.innerHTML = `
+    <ul class="rules">${rules.join("")}</ul>
+    ${worldList}
+    <h3 class="guide-h">Before you bid, check the auction page</h3>
+    <ul class="checklist">
+      <li><b>Last transfer:</b> a character that moved worlds in the last 6 months needs an Express transfer, which costs more.</li>
+      <li><b>No house, not a guild leader, no red or black skull, no open Market offers with Tibia Coins.</b> All of these block a transfer until they're cleared.</li>
+      <li><b>Left Rookgaard or Newhaven:</b> characters still there can't transfer.</li>
+      <li><b>Extra cost:</b> the transfer is bought separately in the Store with Tibia Coins, on top of your winning bid.</li>
+    </ul>
+    <p class="muted small">Rules from the <a href="${TRANSFER_MANUAL}" target="_blank" rel="noopener">Tibia manual</a> and world details from TibiaData. CipSoft can change them, so confirm in the Store before you buy.</p>`;
+}
+
 // ---------- Settings ----------
 
 async function fillWorldSelect(select, emptyLabel) {
   const current = select.value;
   try {
     const worlds = await loadWorlds();
-    select.innerHTML = `<option value="">${emptyLabel}</option>` + worlds.map((w) => `<option>${esc(w)}</option>`).join("");
+    select.innerHTML = `<option value="">${emptyLabel}</option>` + worlds.map((w) => `<option>${esc(w.name)}</option>`).join("");
   } catch { /* keep what is there */ }
   select.value = current;
 }
@@ -402,10 +503,13 @@ async function openSettings() {
   $("#settings-dialog").showModal();
 }
 
-function applySettings() {
-  const chip = $("#world-chip");
-  chip.hidden = !state.settings.world;
-  chip.textContent = state.settings.world;
+async function applySettings() {
+  const sel = $("#world-switch");
+  sel.hidden = !state.world;
+  sel.innerHTML = `<option>${esc(state.world)}</option>`;
+  await fillWorldSelect(sel, "");
+  sel.querySelector('option[value=""]')?.remove();
+  sel.value = state.world;
   const townSel = $("#f-town");
   townSel.innerHTML = '<option value="">All towns</option>' + state.settings.towns.map((t) => `<option>${esc(t)}</option>`).join("");
 }
@@ -417,6 +521,7 @@ function showTab(name) {
   $("#tab-houses").hidden = name !== "houses";
   $("#tab-chars").hidden = name !== "chars";
   if (name === "chars" && bazaarLive === null) checkBazaar();
+  if (name === "chars") renderTransferGuide();
   try { localStorage.setItem("tt.tab", name); } catch { /* ignore */ }
 }
 
@@ -437,6 +542,12 @@ function wire() {
   };
 
   $("#open-settings").onclick = openSettings;
+  $("#world-switch").onchange = (e) => {
+    state.world = e.target.value;
+    loadHouses();
+    renderTransferGuide();
+    renderAuctions();
+  };
   $("#settings-form").onsubmit = async (e) => {
     const f = e.target;
     const towns = [...f.querySelectorAll('input[name="town"]:checked')].map((x) => x.value);
@@ -446,12 +557,17 @@ function wire() {
       return;
     }
     state.settings = { world: f.elements.world.value, towns };
+    state.world = state.settings.world;
     try { await store.save("settings", state.settings); } catch (err) { alert(err.message); }
     applySettings();
     loadHouses();
   };
 
   $("#new-alert").onclick = () => openAlertForm();
+  $("#tg-body").onclick = (e) => {
+    if (!e.target.closest("[data-transfer-alert]")) return;
+    openAlertForm(null, { world: "", transfer_to: state.world, label: `Can move to ${state.world}` });
+  };
   $("#alerts-list").onclick = (e) => {
     const edit = e.target.closest("[data-edit]");
     if (edit) openAlertForm(edit.dataset.edit);
@@ -472,6 +588,7 @@ function wire() {
     }
     if (!a.search) a.search_type = "item";
     if (!a.skill) { a.min_skill = null; a.max_skill = null; }
+    a.transfer_to = f.elements.transfer_only.checked ? $("#af-transfer-world").textContent : "";
     const i = state.alerts.findIndex((x) => x.id === a.id);
     if (i >= 0) state.alerts[i] = a; else state.alerts.push(a);
     saveAlerts();
@@ -489,6 +606,7 @@ async function init() {
   const [settings, alerts] = await Promise.all([store.load("settings", null), store.load("alerts", [])]);
   if (settings) state.settings = { ...state.settings, ...settings };
   state.alerts = Array.isArray(alerts) ? alerts : [];
+  state.world = state.settings.world;
   $("#storage-mode").textContent = state.synced ? "" : " Settings are saved in this browser only.";
   applySettings();
   renderAlerts();
@@ -497,7 +615,7 @@ async function init() {
   try { tab = localStorage.getItem("tt.tab") || tab; } catch { /* ignore */ }
   showTab(tab);
 
-  if (state.settings.world) loadHouses();
+  if (state.world) loadHouses();
   else {
     $("#houses-summary").textContent = "Choose your world to see its house auctions.";
     $("#houses-grid").innerHTML = '<div class="empty">No world selected yet. <button class="btn btn-primary btn-small" id="pick-world">Choose world</button></div>';

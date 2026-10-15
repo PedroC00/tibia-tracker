@@ -15,7 +15,7 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true">◆</span>
         <span class="brand-name">Tibia Tracker</span>
-        <span class="world-chip" id="world-chip" hidden></span>
+        <select id="world-switch" class="world-select" aria-label="World" hidden></select>
       </div>
       <nav class="tabs" role="tablist">
         <button class="tab" role="tab" data-tab="houses" aria-selected="true">Houses</button>
@@ -68,6 +68,14 @@
       </div>
 
       <div id="bazaar-status" class="banner"></div>
+
+      <details id="transfer-guide" class="guide">
+        <summary>
+          <span class="guide-title">Transfer requirements for <span data-world></span></span>
+          <span class="guide-count" id="tg-count"></span>
+        </summary>
+        <div id="tg-body" class="guide-body"></div>
+      </details>
 
       <h2 class="section-title">Your alerts</h2>
       <div id="alerts-list" class="alerts"></div>
@@ -168,6 +176,7 @@
         <label>Search text <input name="search" maxlength="60" placeholder="optional"></label>
         <label>Max bid (Tibia Coins) <input name="max_bid" type="number" min="0" inputmode="numeric" placeholder="no limit"></label>
         <label class="check align-end"><input type="checkbox" name="enabled" checked> Alert is on</label>
+        <label class="check span-2"><input type="checkbox" name="transfer_only"> <span>Only characters that can be transferred to <b id="af-transfer-world"></b></span></label>
         <p class="muted small span-2">
           Only one skill can be filtered per alert; tibia.com allows a single skill range.
           Create one alert per skill (e.g. sword, axe, club) to cover a vocation.
@@ -190,7 +199,7 @@
         <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
       </div>
       <div class="dialog-body form-grid">
-        <label class="span-2">Your world
+        <label class="span-2">Default world
           <select name="world" required><option value="">Choose a world…</option></select>
         </label>
         <fieldset class="span-2">
