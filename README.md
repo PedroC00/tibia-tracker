@@ -95,6 +95,21 @@ Use this if GitHub Actions stops working for you, for example its schedule gets 
 2. Disable the scheduled `Tibia tracker` workflow so both don't run. The job runs every hour while the Mac is awake, and the daily list is sent by the first run after it's due.
 3. Keep the `Contact kill switch` workflow enabled. Local runs still respect `state/halt.json`, so run `git pull` before each run (or add it to the job) to pick up halts.
 
+## Website
+
+`site/` is a private dashboard: current house auctions with pictures, details and links, plus a Characters tab for creating bazaar alerts. It reads TibiaData straight from the browser, so it needs no server of its own. Your world, towns and alerts are stored in Cloudflare KV, never in this repo.
+
+It's hosted on Cloudflare Pages behind Cloudflare Access, both free:
+
+1. **Pages:** Workers & Pages → Create → Pages → connect this repo. Root directory `site`, no build command, build output directory empty (the functions in `site/functions` deploy with it).
+2. **KV:** create a namespace and bind it to the project as `TRACKER_KV` (Settings → Bindings).
+3. **Access:** Zero Trust → Access → Applications → add a self-hosted app for the `*.pages.dev` address (include previews), with a policy that allows only your email.
+4. **Variables:** in the Pages project, set `ACCESS_TEAM_DOMAIN` (e.g. `yourteam.cloudflareaccess.com`) and `ACCESS_AUD` (the app's Application Audience tag), then redeploy. The `/api` endpoints refuse every request without a valid Access token.
+
+To preview locally, run `python3 -m http.server -d site` and open http://localhost:8000. Without `/api`, settings are kept in that browser only.
+
+Character alerts are saved now. The hourly tracker will start using them once TibiaData's bazaar endpoint is live.
+
 ## Layout
 
 ```
@@ -105,4 +120,5 @@ tracker/state.py    (encrypted) state, diffing, failure streaks
 tracker/guard.py    kill switch: block detection, halts, contact auto-reply
 tracker/notify.py   message formatting + Pushover
 tracker/__main__.py orchestration / CLI
+site/               private dashboard (Cloudflare Pages + Access)
 ```

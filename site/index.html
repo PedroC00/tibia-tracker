@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0a1224">
+  <title>Tibia Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◆</span>
+        <span class="brand-name">Tibia Tracker</span>
+        <span class="world-chip" id="world-chip" hidden></span>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab" role="tab" data-tab="houses" aria-selected="true">Houses</button>
+        <button class="tab" role="tab" data-tab="chars" aria-selected="false">Characters</button>
+      </nav>
+      <button class="icon-btn" id="open-settings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1l-.4-2.7h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1l.4 2.7h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5L19.4 13ZM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Houses -->
+    <section id="tab-houses" class="panel" role="tabpanel">
+      <div class="panel-head">
+        <div>
+          <h1>Houses for auction</h1>
+          <p class="muted" id="houses-summary">Loading…</p>
+        </div>
+        <button class="btn" id="refresh-houses">Refresh</button>
+      </div>
+
+      <div class="toolbar">
+        <input type="search" id="f-search" placeholder="Search by name" aria-label="Search by name">
+        <select id="f-town" aria-label="Town"><option value="">All towns</option></select>
+        <select id="f-sort" aria-label="Sort">
+          <option value="ending">Ending soonest</option>
+          <option value="bid-asc">Lowest bid</option>
+          <option value="bid-desc">Highest bid</option>
+          <option value="size">Largest</option>
+          <option value="name">Name</option>
+        </select>
+        <input type="number" id="f-maxbid" min="0" step="10000" placeholder="Max bid" aria-label="Max bid (gold)">
+        <input type="number" id="f-minsize" min="0" placeholder="Min sqm" aria-label="Minimum size (sqm)">
+        <label class="check"><input type="checkbox" id="f-guildhalls" checked> Guildhalls</label>
+      </div>
+
+      <div id="houses-error" class="banner banner-error" hidden></div>
+      <div id="houses-grid" class="grid"></div>
+    </section>
+
+    <!-- Characters -->
+    <section id="tab-chars" class="panel" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div>
+          <h1>Character Bazaar</h1>
+          <p class="muted">Get notified when a character matching your alert goes up for auction.</p>
+        </div>
+        <button class="btn btn-primary" id="new-alert">+ New alert</button>
+      </div>
+
+      <div id="bazaar-status" class="banner"></div>
+
+      <h2 class="section-title">Your alerts</h2>
+      <div id="alerts-list" class="alerts"></div>
+
+      <div id="auctions-block" hidden>
+        <h2 class="section-title">Matching auctions</h2>
+        <p class="muted small">TibiaData only lists auctions ending in the next 24 hours.</p>
+        <div id="auctions-list" class="grid"></div>
+      </div>
+    </section>
+
+    <p class="footer muted small">
+      Data from <a href="https://tibiadata.com" target="_blank" rel="noopener">TibiaData</a> and
+      <a href="https://www.tibia.com" target="_blank" rel="noopener">tibia.com</a>.
+      Tibia is a registered trademark of CipSoft GmbH.
+      <span id="storage-mode"></span>
+    </p>
+  </main>
+
+  <!-- House details -->
+  <dialog id="house-dialog" class="dialog">
+    <div class="dialog-head">
+      <h2 id="hd-title">House</h2>
+      <button class="icon-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <div id="hd-body" class="dialog-body"></div>
+  </dialog>
+
+  <!-- Character alert form -->
+  <dialog id="alert-dialog" class="dialog">
+    <form id="alert-form" method="dialog">
+      <div class="dialog-head">
+        <h2 id="af-title">New character alert</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="span-2">Alert name
+          <input name="label" required maxlength="60" placeholder="e.g. Strong paladin">
+        </label>
+        <label>World
+          <select name="world"><option value="">Any world</option></select>
+        </label>
+        <label>PvP type
+          <select name="pvp_type">
+            <option value="">Any</option>
+            <option value="open">Open PvP</option>
+            <option value="optional">Optional PvP</option>
+            <option value="hardcore">Hardcore PvP</option>
+            <option value="retro_open">Retro Open PvP</option>
+            <option value="retro_hardcore">Retro Hardcore PvP</option>
+          </select>
+        </label>
+        <label>BattlEye
+          <select name="battleye">
+            <option value="">Any</option>
+            <option value="protected">Protected (green)</option>
+            <option value="initially_protected">Initially protected (yellow)</option>
+            <option value="not_protected">Not protected</option>
+          </select>
+        </label>
+        <label>Vocation
+          <select name="vocation">
+            <option value="">Any</option>
+            <option value="knight">Knight</option>
+            <option value="paladin">Paladin</option>
+            <option value="sorcerer">Sorcerer</option>
+            <option value="druid">Druid</option>
+            <option value="monk">Monk</option>
+            <option value="none">None (rookgaard)</option>
+          </select>
+        </label>
+        <label>Min level <input name="min_level" type="number" min="1" inputmode="numeric"></label>
+        <label>Max level <input name="max_level" type="number" min="1" inputmode="numeric"></label>
+        <label>Skill
+          <select name="skill">
+            <option value="">Any</option>
+            <option value="magic_level">Magic level</option>
+            <option value="distance_fighting">Distance</option>
+            <option value="sword_fighting">Sword</option>
+            <option value="axe_fighting">Axe</option>
+            <option value="club_fighting">Club</option>
+            <option value="fist_fighting">Fist</option>
+            <option value="shielding">Shielding</option>
+            <option value="fishing">Fishing</option>
+          </select>
+        </label>
+        <div class="pair">
+          <label>Min skill <input name="min_skill" type="number" min="0" inputmode="numeric"></label>
+          <label>Max skill <input name="max_skill" type="number" min="0" inputmode="numeric"></label>
+        </div>
+        <label>Search for
+          <select name="search_type">
+            <option value="item">Item (exact)</option>
+            <option value="item_wildcard">Item (partial)</option>
+            <option value="character_name">Character name</option>
+          </select>
+        </label>
+        <label>Search text <input name="search" maxlength="60" placeholder="optional"></label>
+        <label>Max bid (Tibia Coins) <input name="max_bid" type="number" min="0" inputmode="numeric" placeholder="no limit"></label>
+        <label class="check align-end"><input type="checkbox" name="enabled" checked> Alert is on</label>
+        <p class="muted small span-2">
+          Only one skill can be filtered per alert; tibia.com allows a single skill range.
+          Create one alert per skill (e.g. sword, axe, club) to cover a vocation.
+        </p>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-danger" id="af-delete" hidden>Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save alert</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Settings -->
+  <dialog id="settings-dialog" class="dialog">
+    <form id="settings-form" method="dialog">
+      <div class="dialog-head">
+        <h2>Settings</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      </div>
+      <div class="dialog-body form-grid">
+        <label class="span-2">Your world
+          <select name="world" required><option value="">Choose a world…</option></select>
+        </label>
+        <fieldset class="span-2">
+          <legend>Towns to show</legend>
+          <div id="settings-towns" class="town-list"></div>
+        </fieldset>
+      </div>
+      <div class="dialog-foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
